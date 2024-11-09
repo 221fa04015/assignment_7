@@ -99,50 +99,57 @@ router.get('/logout', (req, res) => {
 module.exports = router;
 */
 
-const express = require('express');
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');  // Assuming the Agent is part of this model or a separate model
-const bcrypt = require('bcryptjs'); 
-const { protect } = require('../middleware/auth');
-require('dotenv').config();  // Load environment variables
+const express = require("express");
+const jwt = require("jsonwebtoken");
+const User = require("../models/User"); // Assuming the Agent is part of this model or a separate model
+const bcrypt = require("bcryptjs");
+const { protect } = require("../middleware/auth");
+require("dotenv").config(); // Load environment variables
 
 const router = express.Router();
 
-router.post('/register', async (req, res) => {
+router.post("/register", async (req, res) => {
   const { username, email, password, phone, city } = req.body;
 
   try {
-      // Check if the user already exists in the database
-      const existingUser = await User.findOne({ email });
-      if (existingUser) {
-          return res.status(400).send('User with this email already exists');
-      }
+    // Check if the user already exists in the database
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).send("User with this email already exists");
+    }
 
-      // Create a new user instance and save to the database
-      const newUser = new User({ username, email, password, phone, city, role: 'user' });
-      await newUser.save();
+    // Create a new user instance and save to the database
+    const newUser = new User({
+      username,
+      email,
+      password,
+      phone,
+      city,
+      role: "user",
+    });
+    await newUser.save();
 
-      // Sign the JWT token with the user's ID
-      const token = jwt.sign(
-          { id: newUser._id, role: newUser.role }, // Include user ID and role in the token
-          process.env.JWT_SECRET,
-          { expiresIn: '1h' } // Token expires in 1 hour
-      );
+    // Sign the JWT token with the user's ID
+    const token = jwt.sign(
+      { id: newUser._id, role: newUser.role }, // Include user ID and role in the token
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" } // Token expires in 1 hour
+    );
 
-      // Set the token in an HTTP-only cookie
-      res.cookie('token', token, { httpOnly: true });
+    // Set the token in an HTTP-only cookie
+    res.cookie("token", token, { httpOnly: true });
 
-      // Redirect to user dashboard after successful registration
-      res.redirect('/user/dashboard');
+    // Redirect to user dashboard after successful registration
+    res.redirect("/user/dashboard");
   } catch (err) {
-      console.error(err);
-      res.status(500).send('Error registering user');
+    console.error(err);
+    res.status(500).send("Error registering user");
   }
 });
 
 // Login route for users and agents
-router.post('/login', async (req, res) => {
-  const { email, password } = req.body;  // role is inferred from the user record, not the form
+router.post("/login", async (req, res) => {
+  const { email, password } = req.body; // role is inferred from the user record, not the form
 
   try {
     // Find the user by email
@@ -150,56 +157,65 @@ router.post('/login', async (req, res) => {
 
     // Check if the user exists and password is correct
     if (!user || !(await bcrypt.compare(password, user.password))) {
-      return res.status(400).send('Invalid credentials');
+      return res.status(400).send("Invalid credentials");
     }
 
     // Generate JWT token with user ID and role
-    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
 
     // Store the token in an HTTP-only cookie
-    res.cookie('token', token, { httpOnly: true });
+    res.cookie("token", token, { httpOnly: true });
 
     // Redirect based on user role
-    if (user.role === 'agent') {
-      return res.redirect('/agent/dashboard');
+    if (user.role === "agent") {
+      return res.redirect("/agent/dashboard");
     } else {
-      return res.redirect('/user/dashboard');
+      return res.redirect("/user/dashboard");
     }
   } catch (err) {
     console.error(err);
-    return res.status(500).send('Server error');
+    return res.status(500).send("Server error");
   }
 });
 
-
 // Protected Dashboard route for users
-router.get('/dashboard/user', protect, (req, res) => {
-  if (req.user.role !== 'user') {
-    return res.status(403).send('Forbidden');
+router.get("/dashboard/user", protect, (req, res) => {
+  if (req.user.role !== "user") {
+    return res.status(403).send("Forbidden");
   }
-  res.render('user_dashboard', { user: req.user });
+  res.render("user_dashboard", { user: req.user });
 });
 
 // Protected Dashboard route for agents
-router.get('/dashboard/agent', protect, (req, res) => {
-  if (req.user.role !== 'agent') {
-    return res.status(403).send('Forbidden');
+router.get("/dashboard/agent", protect, (req, res) => {
+  if (req.user.role !== "agent") {
+    return res.status(403).send("Forbidden");
   }
-  res.render('agent_dashboard', { agentname: req.user.name });
+  res.render("agent_dashboard", { agentname: req.user.name });
 });
 
+// User home route
+router.get("/userHome", protect, (req, res) => {
+  if (req.user.role !== "user") {
+    return res.status(403).send("Forbidden");
+  }
+  res.render("userHome", { user: req.user });
+});
 
 // Logout route
-router.get('/logout', (req, res) => {
+router.get("/logout", (req, res) => {
   // Clear the JWT cookie by setting it with an empty value and immediate expiration
-  res.cookie('token', '', { 
+  res.cookie("token", "", {
     httpOnly: true, // Ensure it matches the attributes used when setting the cookie
-    expires: new Date(0)  // Expire the cookie immediately
+    expires: new Date(0), // Expire the cookie immediately
   });
 
   // Redirect to the login page or homepage after successful logout
-  res.redirect('/login');
+  res.redirect("/login");
 });
-
 
 module.exports = router;
